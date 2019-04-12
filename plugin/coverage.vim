@@ -32,9 +32,12 @@ call coverage#highlight#define_sign_column_highlight()
 call coverage#highlight#define_highlights()
 call coverage#highlight#define_signs()
 
-command -bar Coverage    call coverage#start()
+command -bar Coverage call coverage#start()
 if g:coverage_auto_start
   call coverage#start()
 endif
 
-autocmd BufRead * call coverage#process_buffer()
+augroup Coverage
+autocmd BufRead,BufWritePost *.\(flow\|jsx\?\|tsx?\|go\) call coverage#process_buffer()
+autocmd BufWritePost *.go call system('go test -coverprofile ' . g:coverage_go_report_path)
+augroup END
