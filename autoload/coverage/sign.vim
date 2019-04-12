@@ -1,4 +1,4 @@
-let s:first_sign_id = 3000
+let s:first_sign_id = 9000
 let s:next_sign_id  = s:first_sign_id
 let s:dummy_sign_id  = s:first_sign_id - 1
 
@@ -19,7 +19,6 @@ function! coverage#sign#update_signs(modified_lines, type) abort
   let bufnr = coverage#utility#bufnr()
   let old_covered_signs = map(filter(values(getbufvar(bufnr, 'coverage_signs')), 'v:val.name == "CoverageCovered"'), 'v:val.id')
   let old_uncovered_signs = map(filter(values(getbufvar(bufnr, 'coverage_signs')), 'v:val.name == "CoverageUncovered"'), 'v:val.id')
-  let other_signs         = getbufvar(bufnr, 'coverage_other_signs')
 
   if !empty(old_covered_signs) || !empty(old_uncovered_signs)
     call coverage#sign#add_dummy_sign()
@@ -36,10 +35,9 @@ function! coverage#sign#update_signs(modified_lines, type) abort
   endif
 
   for line_number in a:modified_lines
-    if index(other_signs, line_number) == -1  " don't clobber others' signs
       let id = coverage#sign#next_sign_id()
       execute "sign place" id "line=" . line_number "name=" . name "buffer=" . bufnr
-    endif
+    " endif
   endfor
 
   if !empty(old_covered_signs) || !empty(old_uncovered_signs)
@@ -67,8 +65,6 @@ endfunction
 function! coverage#sign#find_current_signs() abort
   let bufnr = coverage#utility#bufnr()
   let coverage_signs = {}   " <line_number (string)>: {'id': <id (number)>, 'name': <name (string)>}
-  let gitgutter_signs = []
-  let other_signs = []      " [<line_number (number),...]
   let dummy_sign_placed = 0
 
   redir => signs
@@ -87,27 +83,16 @@ function! coverage#sign#find_current_signs() abort
     else
       if name =~# 'Coverage'
         let id = str2nr(split(components[1], '=')[1])
-        " Remove orphaned signs (signs placed on lines which have been deleted).
-        " (When a line is deleted its sign lingers.  Subsequent lines' signs'
-        " line numbers are decremented appropriately.)
         if has_key(coverage_signs, line_number)
           execute "sign unplace" coverage_signs[line_number].id
         endif
         let coverage_signs[line_number] = {'id': id, 'name': name}
-      else
-        if name =~# 'GitGutter'
-          call add(gitgutter_signs, line_number)
-        else
-          call add(other_signs, line_number)
-        endif
       end
     endif
   endfor
 
   call setbufvar(bufnr, 'coverage_dummy_sign', dummy_sign_placed)
   call setbufvar(bufnr, 'coverage_signs', coverage_signs)
-  call setbufvar(bufnr, 'coverage_gitgutter_signs', gitgutter_signs)
-  call setbufvar(bufnr, 'coverage_other_signs', other_signs)
 endfunction
 
 function! coverage#sign#remove_signs(sign_ids) abort

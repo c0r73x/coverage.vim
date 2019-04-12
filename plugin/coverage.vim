@@ -20,7 +20,10 @@ call s:set('g:coverage_signs', 1)
 call s:set('g:coverage_show_covered', 0)
 call s:set('g:coverage_show_uncovered', 1)
 call s:set('g:coverage_override_sign_column_highlight', 1)
+
 call s:set('g:coverage_json_report_path', 'coverage/coverage.json')
+call s:set('g:coverage_go_report_path', 'coverage/coverage.out')
+
 call s:set('g:coverage_auto_start', 1)
 call s:set('g:coverage_interval', 5000)
 call s:set('g:coverage_sign_column_always', 0)

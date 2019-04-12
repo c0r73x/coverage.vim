@@ -27,19 +27,28 @@ endfunction
 
 function! coverage#get_coverage_lines(file_name) abort
   let coverage_json_full_path = coverage#find_coverage_json()
+  let coverage_go_full_path = coverage#find_coverage_go()
+
+  if !filereadable(coverage_json_full_path) && !filereadable(coverage_go_full_path)
+    return {}
+  endif
+
+  if filereadable(coverage_json_full_path)
+      return coverage#process_json_coverage(a:file_name, coverage_json_full_path)
+  elseif filereadable(coverage_go_full_path)
+      return coverage#process_go_coverage(a:file_name, coverage_go_full_path)
+  endif
+endfunction
+
+function! coverage#process_json_coverage(file_name, coverage_json_full_path)
   let lines = {}
   let lines_map = {}
 
-  if !filereadable(coverage_json_full_path)
-    "echoerr '"' . coverage_json_full_path . '" is not found'
-    return lines
-  endif
-
-  let current_last_modified = getftime(coverage_json_full_path)
+  let current_last_modified = getftime(a:coverage_json_full_path)
 
   " Only read file when file has changed
   if current_last_modified > s:last_modified
-    let s:json_file_content = readfile(coverage_json_full_path)
+    let s:json_file_content = readfile(a:coverage_json_full_path)
     let s:last_modified = current_last_modified
   endif
 
@@ -56,6 +65,48 @@ function! coverage#get_coverage_lines(file_name) abort
       let lines['covered'] = coverage#get_covered_lines(lines_map)
       let lines['uncovered'] = coverage#get_uncovered_lines(lines_map)
     endif
+  catch
+    echoerr v:exception
+  endtry
+  return lines
+endfunction
+
+function! coverage#process_go_coverage(file_name, coverage_go_full_path)
+  let lines = {}
+  let lines['covered'] = []
+  let lines['uncovered'] = []
+
+  let current_last_modified = getftime(a:coverage_go_full_path)
+  let current_file = fnamemodify(a:file_name, ':t')
+
+  " Only read file when file has changed
+  if current_last_modified > s:last_modified
+    let s:go_file_content = readfile(a:coverage_go_full_path)
+    let s:last_modified = current_last_modified
+  endif
+
+  try
+    for line in s:go_file_content
+        if line =~# '[^\/]*' . current_file . ':'
+            let a = split(line, ':')
+            let b = split(a[1])
+
+            let l:count = b[2]
+            let l:stmt = b[1]
+
+            let coverage = split(b[0], ',')
+            let from = split(coverage[0], '\.')
+            let to = split(coverage[1], '\.')
+
+            let cov = (l:count > 0) ? 'covered' : 'uncovered'
+
+            for l:l in range(from[0], to[0])
+                if index(lines['covered'], l:l) == -1 && index(lines['uncovered'], l:l) == -1
+                    let lines[cov] += [l:l]
+                endif
+            endfor
+        endif
+    endfor
   catch
     echoerr v:exception
   endtry
@@ -97,6 +148,10 @@ endfunction
 
 function! coverage#find_coverage_json() abort
   let cwd = fnamemodify('.', ':p')
-  let json_path = cwd . g:coverage_json_report_path
-  return json_path
+  return cwd . g:coverage_json_report_path
+endfunction
+
+function! coverage#find_coverage_go() abort
+  let cwd = fnamemodify('.', ':p')
+  return cwd . g:coverage_go_report_path
 endfunction
